@@ -42,7 +42,7 @@ export type PollQuestion = {
 
 export const POLL_QUESTIONS: PollQuestion[] = [
   {
-    question: 'Wie viele Jahre sind im Amsterdamer Stadsarchiv dokumentiert?',
+    question: 'Wie viele Jahre sind im Amsterdamer Stadtarchiv dokumentiert?',
     options: ['650 Jahre', '480 Jahre', '530 Jahre', '750 Jahre'],
     correctIndex: 3,
   },
