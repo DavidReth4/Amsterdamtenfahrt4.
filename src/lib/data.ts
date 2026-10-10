@@ -1,4 +1,4 @@
-export const TRIP_DESCRIPTION = `Willkommen zur Amsterdam Grachtenfahrt! Begleite uns auf einer malerischen Reise durch die historischen Grachten Amsterdams. Entlang der Route entdeckst du 16 ikonische Wahrzeichen und fotografierst typisch holländische Dinge, testest dein Wissen mit Grachten-Quizfragen und fängst deine eigenen Erinnerungen dieser unvergesslichen Tour ein. Lade an jedem Stop Fotos hoch, beantworte die Umfragen und teile deine Gedanken, um Punkte zu sammeln und in der Rangliste aufzusteigen!`;
+export const TRIP_DESCRIPTION = `Willkommen auf unserer Grachtenfahrt - App. Erkunde Amsterdam vom Wasser aus und sammle dabei Punkte durch das Abschließen von Aufgaben!`;
 
 export const PHOTO_SPOTS = [
   { label: 'Anne-Frank Huis', detail: 'Im Hinterhaus des Prinsengracht 263 schrieb Anne Frank ihr berühmtes Tagebuch. Den Glockenschlag des nahe gelegenen Westertorens konnte sie aus dem Versteck hören.' },
