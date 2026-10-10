@@ -31,6 +31,7 @@ export default function PhotoSpot({
   const [uploading, setUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(existingPhotoUrl);
   const [showDetail, setShowDetail] = useState(isAdmin && showFunFact);
+  const [labelExpanded, setLabelExpanded] = useState(false);
   const [modalSrc, setModalSrc] = useState<string | null>(null);
   const isAdminBlocked = user.username === 'admin2026';
 
@@ -78,8 +79,11 @@ export default function PhotoSpot({
 
   return (
     <div className={`flex flex-col gap-2 transition-all ${disabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-      <div className={`rounded-2xl px-3 py-2 self-start max-w-full ${disabled ? 'bg-gray-400' : 'bg-green-600'}`}>
-        <p className="text-white text-xs font-medium truncate">{label}</p>
+      <div
+        className={`rounded-2xl px-3 py-2 self-start max-w-full cursor-pointer select-none transition-colors ${disabled ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+        onClick={() => setLabelExpanded((v) => !v)}
+      >
+        <p className={`text-white text-xs font-medium ${labelExpanded ? 'whitespace-normal' : 'truncate'}`}>{label}</p>
       </div>
       <div
         className={`rounded-2xl aspect-square flex items-center justify-center overflow-hidden relative group transition-all ${disabled ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 cursor-pointer hover:bg-green-500'}`}
