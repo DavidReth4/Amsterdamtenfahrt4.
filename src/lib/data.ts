@@ -1,4 +1,4 @@
-export const TRIP_DESCRIPTION = `Willkommen auf unserer Grachtenfahrt - App. Erkunde Amsterdam vom Wasser aus und sammle dabei Punkte durch das Abschließen von Aufgaben!`;
+export const TRIP_DESCRIPTION = `Willkommen auf unserer Grachtenfahrt - App. Erkunde Amsterdam vom Wasser aus und sammle dabei Punkte durch das Abschließen von Aufgaben - viel Spaß!`;
 
 export const PHOTO_SPOTS = [
   { label: 'Anne-Frank Huis', detail: 'Im Hinterhaus des Prinsengracht 263 schrieb Anne Frank ihr berühmtes Tagebuch. Den Glockenschlag des nahe gelegenen Westertorens konnte sie aus dem Versteck hören.' },
