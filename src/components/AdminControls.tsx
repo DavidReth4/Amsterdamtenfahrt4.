@@ -101,10 +101,6 @@ export default function AdminControls({ disabled, onChanged }: AdminControlsProp
               </button>
             </div>
 
-            <p className="text-green-600 text-sm mb-6">
-              Deaktiviere Foto-Stops oder Quizfragen, um sie für alle auszugrauen. Punkte werden automatisch entfernt und bei erneuter Aktivierung wiederhergestellt.
-            </p>
-
             {/* Start ceremony */}
             <div className="mb-6">
               <button
@@ -119,6 +115,10 @@ export default function AdminControls({ disabled, onChanged }: AdminControlsProp
                 Startet einen Countdown für alle Nutzer und zeigt das Siegerpodium.
               </p>
             </div>
+
+            <p className="text-green-600 text-sm mb-6">
+              Deaktiviere Foto-Stops oder Quizfragen, um sie für alle auszugrauen. Punkte werden automatisch entfernt und bei erneuter Aktivierung wiederhergestellt.
+            </p>
 
             {/* Photo spots */}
             <div className="mb-6">

@@ -445,7 +445,7 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
                         <span className="text-tan-200 text-xs ml-2">(Admin)</span>
                       </p>
                       <p className="text-xs font-semibold text-white/60">
-                        {adminData.displayScore} / {MAX_POINTS} Punkte
+                        —
                       </p>
                     </div>
                   </div>
