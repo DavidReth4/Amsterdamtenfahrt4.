@@ -111,6 +111,7 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
       const visibleUsers = allUsers.filter((u) => u.username !== ADMIN_USERNAME);
 
       const buildRanked = (u: GrachtenUser): RankedUser => {
+        const isAdminUser = u.username === ADMIN_USERNAME;
         const userLikeCount = likes.filter(
           (l) => l.target_user_id === u.id && l.voter_id !== u.id,
         ).length;
@@ -135,9 +136,10 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
         ).length;
         const textPoint = allTexts.find((t) => t.user_id === u.id) ? 1 : 0;
         const baseScore = photoPoints + bonusPhotoPoints + pollPoints + textPoint;
-        const bonusFromLikes = userLikeCount * LIKE_POINTS;
-        const bonusFromFavs = userFavCount * FAVORITE_POINTS;
-        const displayScore = baseScore + bonusFromLikes + bonusFromFavs + voterReward;
+        const bonusFromLikes = isAdminUser ? 0 : userLikeCount * LIKE_POINTS;
+        const bonusFromFavs = isAdminUser ? 0 : userFavCount * FAVORITE_POINTS;
+        const voterRewardFinal = isAdminUser ? 0 : voterReward;
+        const displayScore = isAdminUser ? 0 : baseScore + bonusFromLikes + bonusFromFavs + voterRewardFinal;
 
         return {
           ...u,
@@ -146,7 +148,7 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
           textEntry: allTexts.find((t) => t.user_id === u.id) ?? null,
           likeCount: userLikeCount,
           favoriteCount: userFavCount,
-          voterReward,
+          voterReward: voterRewardFinal,
           displayScore,
         };
       };

@@ -127,8 +127,12 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
       setPhotoUrls(urls);
       setPollAnswers(answers);
       setBonusCount(bonus);
-      const s = computeScore(urls, answers, bonus, hasText, disabledItems);
-      setScore(s);
+      if (isAdmin) {
+        setScore(0);
+      } else {
+        const s = computeScore(urls, answers, bonus, hasText, disabledItems);
+        setScore(s);
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -137,6 +141,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
   };
 
   const updateScore = async (photos: PhotoUrls, polls: PollAnswers, bonus: number, saved: boolean) => {
+    if (isAdmin) return;
     const s = computeScore(photos, polls, bonus, saved, disabledItems);
     setScore(s);
     const { error } = await supabase.from('grachten_users').update({ total_score: s }).eq('id', user.id);
@@ -155,6 +160,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
     }
     const newDisabled = parseDisabledItems((data || []) as DisabledItem[]);
     setDisabledItems(newDisabled);
+    if (isAdmin) return;
     const s = computeScore(photoUrls, pollAnswers, bonusCount, textSaved, newDisabled);
     setScore(s);
     const { error: updateError } = await supabase.from('grachten_users').update({ total_score: s }).eq('id', user.id);
