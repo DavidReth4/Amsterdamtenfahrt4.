@@ -13,8 +13,9 @@ export default function BonusUpload({ user, uploadedCount, onUploaded }: BonusUp
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
+  const isAdminBlocked = user.username === 'admin2026';
   const remaining = MAX_BONUS_UPLOADS - uploadedCount;
-  const canUpload = remaining > 0 && !uploading;
+  const canUpload = remaining > 0 && !uploading && !isAdminBlocked;
 
   const handleFile = async (file: File) => {
     setUploading(true);
@@ -45,16 +46,18 @@ export default function BonusUpload({ user, uploadedCount, onUploaded }: BonusUp
   };
 
   return (
-    <div className="bg-green-600 rounded-2xl aspect-square max-w-[200px] mx-auto flex flex-col items-center justify-center cursor-pointer overflow-hidden relative group transition-all hover:bg-green-500"
+    <div className={`rounded-2xl aspect-square max-w-[200px] mx-auto flex flex-col items-center justify-center overflow-hidden relative group transition-all ${canUpload ? 'bg-green-600 cursor-pointer hover:bg-green-500' : 'bg-gray-300 cursor-not-allowed'}`}
       onClick={() => canUpload && fileRef.current?.click()}
     >
       {uploading ? (
         <div className="w-8 h-8 border-3 border-tan-100 border-t-transparent rounded-full animate-spin" />
-      ) : (
+      ) : canUpload ? (
         <>
           <span className="text-white text-4xl font-bold">{remaining}</span>
           <Camera className="w-6 h-6 text-white/70 mt-2" strokeWidth={1.5} />
         </>
+      ) : (
+        <span className="text-gray-500 text-xs font-medium text-center px-2">Upload deaktiviert</span>
       )}
       <input
         ref={fileRef}

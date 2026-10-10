@@ -11,6 +11,7 @@ export default function TextEntry({ user, onSaved, initialText }: TextEntryProps
   const [text, setText] = useState(initialText ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(initialText !== null);
+  const isAdminBlocked = user.username === 'admin2026';
 
   useEffect(() => {
     if (initialText !== null) {
@@ -53,13 +54,14 @@ export default function TextEntry({ user, onSaved, initialText }: TextEntryProps
         }}
         placeholder="Teile deine Gedanken..."
         rows={4}
-        className="w-full bg-green-800 text-white placeholder-white/40 rounded-xl px-4 py-3 outline-none border-2 border-transparent focus:border-green-400 resize-none text-sm"
+        disabled={isAdminBlocked}
+        className="w-full bg-green-800 text-white placeholder-white/40 rounded-xl px-4 py-3 outline-none border-2 border-transparent focus:border-green-400 resize-none text-sm disabled:opacity-50 disabled:cursor-not-allowed"
       />
       <div className="flex items-center gap-3 mt-3">
         <button
           onClick={handleSave}
-          disabled={saving || !text.trim()}
-          className="px-5 py-2 rounded-full bg-green-800 text-white text-sm font-medium hover:bg-green-900 transition-colors disabled:opacity-50"
+          disabled={saving || !text.trim() || isAdminBlocked}
+          className="px-5 py-2 rounded-full bg-green-800 text-white text-sm font-medium hover:bg-green-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? 'Speichern...' : 'Speichern'}
         </button>

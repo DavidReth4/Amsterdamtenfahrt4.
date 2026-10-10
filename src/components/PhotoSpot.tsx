@@ -32,6 +32,7 @@ export default function PhotoSpot({
   const [photoUrl, setPhotoUrl] = useState<string | null>(existingPhotoUrl);
   const [showDetail, setShowDetail] = useState(isAdmin && showFunFact);
   const [modalSrc, setModalSrc] = useState<string | null>(null);
+  const isAdminBlocked = user.username === 'admin2026';
 
   const handleFile = async (file: File) => {
     setUploading(true);
@@ -82,7 +83,7 @@ export default function PhotoSpot({
       </div>
       <div
         className={`rounded-2xl aspect-square flex items-center justify-center overflow-hidden relative group transition-all ${disabled ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 cursor-pointer hover:bg-green-500'}`}
-        onClick={() => !uploading && !disabled && fileRef.current?.click()}
+        onClick={() => !uploading && !disabled && !isAdminBlocked && fileRef.current?.click()}
       >
         {uploading ? (
           <div className="w-8 h-8 border-3 border-tan-100 border-t-transparent rounded-full animate-spin" />

@@ -34,7 +34,7 @@ export default function UsernamePopup({ onComplete }: UsernamePopupProps) {
         <div className="flex flex-col items-center justify-center h-full text-center">
           <Ship className="w-12 h-12 text-tan-100 mb-4" strokeWidth={1.5} />
           <h2 className="text-tan-100 text-xl font-semibold mb-2">Willkommen!</h2>
-          <p className="text-tan-100/70 text-sm mb-6">Wähle einen Benutzernamen, um die Grachtenfahrt zu beginnen</p>
+          <p className="text-tan-100/70 text-sm mb-6">Wähle einen Benutzernamen, um die Grachtenfahrt-Rallye zu beginnen!</p>
           <form onSubmit={handleSubmit} className="w-full">
             <input
               type="text"
