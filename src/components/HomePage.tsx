@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Ship, LogOut } from 'lucide-react';
 import {
   supabase,
@@ -199,6 +199,19 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
     updateScore(photoUrls, pollAnswers, bonusCount, true);
   };
 
+  const loadLeaderboardRef = useRef(loadLeaderboard);
+  loadLeaderboardRef.current = loadLeaderboard;
+  const loadDisabledItemsRef = useRef(loadDisabledItems);
+  loadDisabledItemsRef.current = loadDisabledItems;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadLeaderboardRef.current();
+      loadDisabledItemsRef.current();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-tan-100 flex items-center justify-center">
@@ -207,7 +220,20 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
     );
   }
 
-  const currentRank = leaderboard.findIndex((participant) => participant.id === user.id);
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => b.total_score - a.total_score);
+  let sharedRank: number | null = null;
+  {
+    let r = 1;
+    for (let i = 0; i < sortedLeaderboard.length; i++) {
+      if (i > 0 && sortedLeaderboard[i].total_score !== sortedLeaderboard[i - 1].total_score) {
+        r = i + 1;
+      }
+      if (sortedLeaderboard[i].id === user.id) {
+        sharedRank = r;
+        break;
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-tan-100 pb-32">
@@ -361,8 +387,8 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
 
       <LeaderboardBar
         score={score}
-        rank={currentRank >= 0 ? currentRank + 1 : null}
-        topUsers={leaderboard.slice(0, 3)}
+        rank={sharedRank}
+        topUsers={leaderboard}
       />
     </div>
   );

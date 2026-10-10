@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Trophy,
   Crown,
@@ -50,6 +50,7 @@ type RankedUser = GrachtenUser & {
   favoriteCount: number;
   voterReward: number;
   displayScore: number;
+  sharedRank?: number;
 };
 
 export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: ResultsPageProps) {
@@ -158,6 +159,19 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
       const ranked: RankedUser[] = visibleUsers.map((u) => buildRanked(u));
 
       ranked.sort((a, b) => b.displayScore - a.displayScore);
+
+      const rankMap: Record<string, number> = {};
+      let currentRank = 1;
+      for (let i = 0; i < ranked.length; i++) {
+        if (i > 0 && ranked[i].displayScore !== ranked[i - 1].displayScore) {
+          currentRank = i + 1;
+        }
+        rankMap[ranked[i].id] = currentRank;
+      }
+      ranked.forEach((u) => {
+        u.sharedRank = rankMap[u.id];
+      });
+
       setUsers(ranked);
       if (!isAdmin) {
         setExpandedUser(currentUser.id);
@@ -325,6 +339,16 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
     const score = photoPoints + bonusPoints + pollPoints + textPoint;
     await supabase.from('grachten_users').update({ total_score: score }).eq('id', userId);
   };
+
+  const loadResultsRef = useRef(loadResults);
+  loadResultsRef.current = loadResults;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadResultsRef.current();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const myLikesGiven = voterLikes.length;
   const myFavsGiven = voterFavorites.length;
@@ -567,16 +591,16 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
                     <div className="flex items-center gap-3">
                       <span
                         className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold ${
-                          rank === 0
+                          u.sharedRank === 1
                             ? 'bg-yellow-400 text-yellow-900'
-                            : rank === 1
+                            : u.sharedRank === 2
                             ? 'bg-gray-300 text-gray-700'
-                            : rank === 2
+                            : u.sharedRank === 3
                             ? 'bg-orange-400 text-orange-900'
                             : 'bg-green-800 text-white'
                         }`}
                       >
-                        {rank + 1}
+                        {u.sharedRank}
                       </span>
                       <div className="text-left">
                         <p className="text-white font-semibold text-base">
