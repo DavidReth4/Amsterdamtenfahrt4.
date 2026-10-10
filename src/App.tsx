@@ -35,7 +35,7 @@ export default function App() {
     }
   }, []);
 
-  const handleUsernameComplete = async (username: string): Promise<string | null> => {
+  const handleUsernameComplete = async (username: string) => {
     try {
       const { data: existing } = await supabase
         .from('grachten_users')
@@ -44,7 +44,11 @@ export default function App() {
         .maybeSingle();
 
       if (existing) {
-        return 'Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.';
+        const existingUser = existing as GrachtenUser;
+        localStorage.setItem('grachten_user_id', existingUser.id);
+        setUser(existingUser);
+        setPage('home');
+        return;
       }
 
       const { data, error } = await supabase
@@ -53,22 +57,16 @@ export default function App() {
         .select()
         .single();
 
-      if (error) {
-        if (error.code === '23505') {
-          return 'Dieser Benutzername ist bereits vergeben. Bitte wähle einen anderen.';
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       const newUser = data as GrachtenUser;
       localStorage.setItem('grachten_user_id', newUser.id);
       setUser(newUser);
       setPage('home');
-      return null;
     } catch (err) {
       console.error('Failed to create user:', err);
+      alert('Etwas ist schiefgelaufen. Bitte versuche es erneut.');
       setPage('popup');
-      return 'Etwas ist schiefgelaufen. Bitte versuche es erneut.';
     }
   };
 
