@@ -72,6 +72,15 @@ export type DisabledSet = {
   pollQuestions: Set<number>;
 };
 
+export type CeremonyState = {
+  id: number;
+  is_active: boolean;
+  phase: 'countdown' | 'podium' | 'ended';
+  started_at: string | null;
+  ended_at: string | null;
+  updated_at: string;
+};
+
 export function parseDisabledItems(items: DisabledItem[]): DisabledSet {
   const photoSpots = new Set<number>();
   const pollQuestions = new Set<number>();

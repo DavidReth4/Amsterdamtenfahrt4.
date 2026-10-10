@@ -95,6 +95,119 @@ body {
   animation: wave-move 4s linear infinite;
 }
 
+/* Kahoot-style podium wobble */
+@keyframes podium-wobble {
+  0% { transform: rotate(0deg) translateY(0); }
+  20% { transform: rotate(-8deg) translateY(-6px); }
+  40% { transform: rotate(6deg) translateY(-3px); }
+  60% { transform: rotate(-5deg) translateY(-5px); }
+  80% { transform: rotate(4deg) translateY(-2px); }
+  100% { transform: rotate(0deg) translateY(0); }
+}
+
+.podium-wobble {
+  animation: podium-wobble 1.2s ease-in-out infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+@keyframes podium-rise {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.podium-rise {
+  animation: podium-rise 0.5s ease-out forwards;
+}
+
+/* Confetti */
+@keyframes confetti-burst-bottom-left {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--cx, 200px), var(--cy, -400px)) rotate(var(--cr, 720deg));
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-burst-bottom-right {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--cx, -200px), var(--cy, -400px)) rotate(var(--cr, -720deg));
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(var(--cr, 360deg));
+    opacity: 0.3;
+  }
+}
+
+.confetti-burst-bl {
+  animation: confetti-burst-bottom-left 1.5s ease-out forwards;
+}
+
+.confetti-burst-br {
+  animation: confetti-burst-bottom-right 1.5s ease-out forwards;
+}
+
+.confetti-fall {
+  animation: confetti-fall 3s ease-in forwards;
+}
+
+@keyframes countdown-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+.countdown-pop {
+  animation: countdown-pop 1s ease-in-out forwards;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   supabase,
   ADMIN_USERNAME,
   type GrachtenUser,
+  type CeremonyState,
 } from '@/lib/supabase';
 import UsernamePopup from '@/components/UsernamePopup';
 import HomePage from '@/components/HomePage';
 import ResultsPage from '@/components/ResultsPage';
+import CeremonyPage from '@/components/CeremonyPage';
 
-type Page = 'popup' | 'home' | 'results';
+type Page = 'popup' | 'home' | 'results' | 'ceremony';
 
 export default function App() {
   const [page, setPage] = useState<Page>('popup');
@@ -70,6 +72,30 @@ export default function App() {
     }
   };
 
+  const [ceremonyActive, setCeremonyActive] = useState(false);
+  const prevCeremonyRef = useRef(false);
+
+  useEffect(() => {
+    const checkCeremony = async () => {
+      const { data } = await supabase
+        .from('ceremony_state')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      const state = data as CeremonyState | null;
+      const active = state?.is_active === true;
+      setCeremonyActive(active);
+      if (!active && prevCeremonyRef.current) {
+        setPage('results');
+      }
+      prevCeremonyRef.current = active;
+    };
+
+    checkCeremony();
+    const interval = setInterval(checkCeremony, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-tan-100 flex items-center justify-center">
@@ -87,6 +113,10 @@ export default function App() {
     setUser(null);
     setPage('popup');
   };
+
+  if (ceremonyActive) {
+    return <CeremonyPage currentUser={user} onCeremonyEnd={() => setCeremonyActive(false)} />;
+  }
 
   if (page === 'results') {
     return <ResultsPage currentUser={user} onBack={() => setPage('home')} isAdmin={user.username === ADMIN_USERNAME} onLogout={handleLogout} />;

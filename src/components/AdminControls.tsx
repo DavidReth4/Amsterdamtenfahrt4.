@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, X, Eye, EyeOff, Camera, HelpCircle } from 'lucide-react';
+import { Settings, X, Eye, EyeOff, Camera, HelpCircle, Trophy } from 'lucide-react';
 import { supabase, type DisabledSet } from '@/lib/supabase';
 import { PHOTO_SPOTS, THINGS_SPOTS, POLL_QUESTIONS } from '@/lib/data';
 
@@ -11,6 +11,28 @@ type AdminControlsProps = {
 export default function AdminControls({ disabled, onChanged }: AdminControlsProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<number | null>(null);
+  const [ceremonyStarting, setCeremonyStarting] = useState(false);
+
+  const startCeremony = async () => {
+    if (!confirm('Finale starten? Alle Nutzer sehen einen Countdown und werden dann zur Siegerehrung weitergeleitet.')) return;
+    setCeremonyStarting(true);
+    try {
+      await supabase
+        .from('ceremony_state')
+        .update({
+          is_active: true,
+          phase: 'countdown',
+          started_at: new Date().toISOString(),
+          ended_at: null,
+        })
+        .eq('id', 1);
+    } catch (err) {
+      console.error('Failed to start ceremony:', err);
+      alert('Finale konnte nicht gestartet werden.');
+    } finally {
+      setCeremonyStarting(false);
+    }
+  };
 
   const togglePhotoSpot = async (index: number) => {
     setBusy(index);
@@ -82,6 +104,21 @@ export default function AdminControls({ disabled, onChanged }: AdminControlsProp
             <p className="text-green-600 text-sm mb-6">
               Deaktiviere Foto-Stops oder Quizfragen, um sie für alle auszugrauen. Punkte werden automatisch entfernt und bei erneuter Aktivierung wiederhergestellt.
             </p>
+
+            {/* Start ceremony */}
+            <div className="mb-6">
+              <button
+                onClick={startCeremony}
+                disabled={ceremonyStarting}
+                className="w-full flex items-center justify-center gap-2 px-5 py-4 rounded-2xl bg-green-700 text-white font-semibold text-base hover:bg-green-800 transition-all shadow-lg disabled:opacity-50"
+              >
+                <Trophy className="w-5 h-5" strokeWidth={1.5} />
+                {ceremonyStarting ? 'Wird gestartet...' : 'Finale starten'}
+              </button>
+              <p className="text-green-600 text-xs mt-2 text-center">
+                Startet einen Countdown für alle Nutzer und zeigt das Siegerpodium.
+              </p>
+            </div>
 
             {/* Photo spots */}
             <div className="mb-6">
