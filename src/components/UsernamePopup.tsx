@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Ship } from 'lucide-react';
 
 type UsernamePopupProps = {
-  onComplete: (username: string) => void;
+  onComplete: (username: string) => Promise<string | null>;
 };
 
 export default function UsernamePopup({ onComplete }: UsernamePopupProps) {
@@ -10,7 +10,7 @@ export default function UsernamePopup({ onComplete }: UsernamePopupProps) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = username.trim();
     if (trimmed.length < 2) {
@@ -22,7 +22,11 @@ export default function UsernamePopup({ onComplete }: UsernamePopupProps) {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => onComplete(trimmed), 900);
+    const err = await onComplete(trimmed);
+    if (err) {
+      setError(err);
+      setSubmitting(false);
+    }
   };
 
   return (
