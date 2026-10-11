@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Crown, X } from 'lucide-react';
+import { Crown, X, Image as ImageIcon, ListChecks, FileText, Heart, Star } from 'lucide-react';
 import {
   supabase,
   ADMIN_USERNAME,
+  PHOTO_BUCKET,
+  BONUS_SPOT_BASE,
   type GrachtenUser,
+  type GrachtenPhoto,
+  type GrachtenPollAnswer,
+  type GrachtenTextEntry,
   type CeremonyState,
 } from '@/lib/supabase';
+import { PHOTO_SPOTS, POLL_QUESTIONS } from '@/lib/data';
 
 type CeremonyPageProps = {
   currentUser: GrachtenUser;
@@ -18,12 +24,31 @@ type RankedUser = {
   total_score: number;
 };
 
+const REVIEW_QUESTIONS = [
+  'Was hast du heute neues gelernt?',
+  'Welche Fragen sind noch offen, bzw. haben sich neu ergeben?',
+  'Hat dir die Grachtenfahrt - Rallye gefallen, wenn ja warum, wenn nein, warum nicht?',
+  'Hat dir die Grachtenfahrt, unabhängig von der Rallye gefallen, wenn ja warum, wenn nein, warum nicht?',
+];
+
+type UserPost = {
+  photos: GrachtenPhoto[];
+  pollAnswers: GrachtenPollAnswer[];
+  textEntry: GrachtenTextEntry | null;
+  likeCount: number;
+  favoriteCount: number;
+};
+
 export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPageProps) {
   const [phase, setPhase] = useState<'countdown' | 'podium'>('countdown');
   const [countdown, setCountdown] = useState(10);
   const [rankedUsers, setRankedUsers] = useState<RankedUser[]>([]);
   const [revealStep, setRevealStep] = useState(0);
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
+  const [popupUserId, setPopupUserId] = useState<string | null>(null);
+  const [popupData, setPopupData] = useState<UserPost | null>(null);
+  const [popupLoading, setPopupLoading] = useState(false);
+  const [modalSrc, setModalSrc] = useState<string | null>(null);
   const isAdmin = currentUser.username === ADMIN_USERNAME;
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const submittedRef = useRef(false);
@@ -41,7 +66,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
     fallDuration: number;
   };
 
-  const colors = ['#ffffff', '#f0f0f0', '#e8e8e8', '#fafafa'];
+  const colors = ['#000000', '#ffffff', '#1a5e2a'];
 
   const generateConfetti = useMemo(() => {
     const pieces: ConfettiPiece[] = [];
@@ -89,6 +114,9 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
     };
   }, [phase]);
 
+  // Reveal order: 3rd place first, then 2nd, then 1st
+  const revealOrder = [3, 2, 1];
+
   useEffect(() => {
     if (phase === 'podium') {
       autoSubmitAll();
@@ -122,24 +150,6 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
   const autoSubmitAll = async () => {
     if (submittedRef.current) return;
     submittedRef.current = true;
-
-    try {
-      const { data: users } = await supabase
-        .from('grachten_users')
-        .select('id')
-        .neq('username', ADMIN_USERNAME);
-
-      if (!users) return;
-
-      for (const u of users) {
-        await supabase
-          .from('grachten_users')
-          .update({ total_score: u.total_score })
-          .eq('id', u.id);
-      }
-    } catch (err) {
-      console.error('Auto-submit failed:', err);
-    }
   };
 
   const handleEndCeremony = async () => {
@@ -150,6 +160,38 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
     onCeremonyEnd();
   };
 
+  const openPopup = async (userId: string) => {
+    setPopupUserId(userId);
+    setPopupLoading(true);
+    setPopupData(null);
+    try {
+      const [photosRes, pollsRes, textRes, likesRes, favsRes] = await Promise.all([
+        supabase.from('grachten_photos').select('*').eq('user_id', userId),
+        supabase.from('grachten_poll_answers').select('*').eq('user_id', userId),
+        supabase.from('grachten_text_entries').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('grachten_post_likes').select('id').eq('target_user_id', userId),
+        supabase.from('grachten_post_favorites').select('id').eq('target_user_id', userId),
+      ]);
+      setPopupData({
+        photos: (photosRes.data || []) as GrachtenPhoto[],
+        pollAnswers: (pollsRes.data || []) as GrachtenPollAnswer[],
+        textEntry: (textRes.data || null) as GrachtenTextEntry | null,
+        likeCount: (likesRes.data || []).length,
+        favoriteCount: (favsRes.data || []).length,
+      });
+    } catch (err) {
+      console.error('Failed to load user post:', err);
+    } finally {
+      setPopupLoading(false);
+    }
+  };
+
+  const getPhotoUrl = (path: string) => {
+    const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const top5 = rankedUsers.slice(0, 5);
   const top3 = rankedUsers.slice(0, 3);
   const places4and5 = rankedUsers.slice(3, 5);
 
@@ -160,6 +202,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
   ];
 
   const getPodiumUser = (rank: number) => top3[rank - 1];
+  const getRevealStepForRank = (rank: number) => revealOrder.indexOf(rank) + 1;
 
   return (
     <div className="min-h-screen bg-tan-100 flex flex-col items-center justify-center relative overflow-hidden px-4">
@@ -251,8 +294,9 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
             <div className="flex items-end justify-center gap-2 sm:gap-4 mb-6">
               {podiumConfig.map(({ rank, height, medal, order }) => {
                 const user = getPodiumUser(rank);
-                const isRevealed = revealStep >= rank;
-                const showWobble = revealStep > rank;
+                const stepForRank = getRevealStepForRank(rank);
+                const isRevealed = revealStep >= stepForRank;
+                const showWobble = revealStep > stepForRank;
 
                 return (
                   <div
@@ -265,9 +309,14 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                         <div
                           className={`fade-in-up ${showWobble ? 'podium-wobble' : ''}`}
                         >
-                          <p className="text-white text-sm sm:text-base font-semibold text-center">
-                            {user.username}
-                          </p>
+                          <button
+                            onClick={() => openPopup(user.id)}
+                            className="hover:underline decoration-white/50 underline-offset-2"
+                          >
+                            <p className="text-white text-sm sm:text-base font-semibold text-center">
+                              {user.username}
+                            </p>
+                          </button>
                           <p className="text-white/70 text-xs text-center">
                             {user.total_score} Punkte
                           </p>
@@ -299,7 +348,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                           ? 'bg-green-700'
                           : 'bg-green-700/80'
                       } ${isRevealed ? '' : 'opacity-0'}`}
-                      style={{ transitionDelay: `${rank * 100}ms` }}
+                      style={{ transitionDelay: `${stepForRank * 100}ms` }}
                     >
                       <span className="text-white text-3xl sm:text-4xl font-bold opacity-50">
                         {rank}
@@ -319,9 +368,14 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                   <div key={user?.id || i} className="h-12">
                     {isRevealed && user && (
                       <div className="fade-in-up text-center">
-                        <p className="text-white/80 text-sm font-medium">
-                          {rank}. {user.username}
-                        </p>
+                        <button
+                          onClick={() => openPopup(user.id)}
+                          className="hover:underline decoration-white/50 underline-offset-2"
+                        >
+                          <p className="text-white/80 text-sm font-medium">
+                            {rank}. {user.username}
+                          </p>
+                        </button>
                         <p className="text-white/50 text-xs">
                           {user.total_score} Punkte
                         </p>
@@ -331,7 +385,199 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                 );
               })}
             </div>
+
+            <p className="text-white/50 text-xs text-center mt-6">
+              Tippe auf einen Namen, um den Beitrag zu sehen
+            </p>
           </div>
+        </div>
+      )}
+
+      {/* Post popup modal */}
+      {popupUserId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => { setPopupUserId(null); setPopupData(null); }}
+        >
+          <div
+            className="bg-tan-100 rounded-3xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-green-700">
+                {top5.find((u) => u.id === popupUserId)?.username ?? 'Beitrag'}
+              </h3>
+              <button
+                onClick={() => { setPopupUserId(null); setPopupData(null); }}
+                className="p-2 rounded-full bg-green-700 text-white hover:bg-green-800 transition-colors"
+              >
+                <X className="w-5 h-5" strokeWidth={1.5} />
+              </button>
+            </div>
+
+            {/* Like / Favorite counts */}
+            {popupData && (popupData.likeCount > 0 || popupData.favoriteCount > 0) && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 text-green-700">
+                  <Heart className="w-3.5 h-3.5" strokeWidth={2} />
+                  {popupData.likeCount}
+                </span>
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 text-yellow-600">
+                  <Star className="w-3.5 h-3.5" strokeWidth={2} />
+                  {popupData.favoriteCount}
+                </span>
+              </div>
+            )}
+
+            {popupLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {popupData && (
+              <>
+                {/* Photos */}
+                {popupData.photos.filter((p) => p.spot_index < BONUS_SPOT_BASE).length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ImageIcon className="w-4 h-4 text-green-600" strokeWidth={1.5} />
+                      <p className="text-green-700 text-xs font-medium">Foto-Stops</p>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {popupData.photos
+                        .filter((p) => p.spot_index < BONUS_SPOT_BASE)
+                        .sort((a, b) => a.spot_index - b.spot_index)
+                        .map((photo) => (
+                          <div key={photo.id}>
+                            <img
+                              src={getPhotoUrl(photo.storage_path)}
+                              alt={PHOTO_SPOTS[photo.spot_index]?.label ?? 'Photo'}
+                              className="w-full aspect-square object-cover rounded-xl cursor-zoom-in transition-transform hover:scale-[1.03]"
+                              onClick={() => setModalSrc(getPhotoUrl(photo.storage_path))}
+                            />
+                            <p className="text-green-600 text-[10px] mt-1 truncate">
+                              {PHOTO_SPOTS[photo.spot_index]?.label ?? ''}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bonus photos */}
+                {popupData.photos.filter((p) => p.spot_index >= BONUS_SPOT_BASE).length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ImageIcon className="w-4 h-4 text-green-600" strokeWidth={1.5} />
+                      <p className="text-green-700 text-xs font-medium">Bonus-Fotos</p>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {popupData.photos
+                        .filter((p) => p.spot_index >= BONUS_SPOT_BASE)
+                        .sort((a, b) => a.spot_index - b.spot_index)
+                        .map((photo) => (
+                          <img
+                            key={photo.id}
+                            src={getPhotoUrl(photo.storage_path)}
+                            alt="Bonus"
+                            className="w-full aspect-square object-cover rounded-xl cursor-zoom-in transition-transform hover:scale-[1.03]"
+                            onClick={() => setModalSrc(getPhotoUrl(photo.storage_path))}
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Poll answers */}
+                {popupData.pollAnswers.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ListChecks className="w-4 h-4 text-green-600" strokeWidth={1.5} />
+                      <p className="text-green-700 text-xs font-medium">Quiz-Ergebnisse</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {popupData.pollAnswers
+                        .sort((a, b) => a.poll_index - b.poll_index)
+                        .map((ans) => {
+                          const poll = POLL_QUESTIONS[ans.poll_index];
+                          if (!poll) return null;
+                          return (
+                            <div key={ans.id} className="bg-green-600 rounded-xl p-3">
+                              <p className="text-white text-xs mb-1">
+                                {ans.poll_index + 1}. {poll.question}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-white/60 text-xs">
+                                  Antwort: {poll.options[ans.selected_option]}
+                                </p>
+                                <span
+                                  className={`text-xs font-bold ${
+                                    ans.is_correct ? 'text-green-300' : 'text-red-300'
+                                  }`}
+                                >
+                                  {ans.is_correct ? 'Richtig' : 'Falsch'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Review answers */}
+                {popupData.textEntry && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-green-600" strokeWidth={1.5} />
+                      <p className="text-green-700 text-xs font-medium">Rezension</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {[
+                        popupData.textEntry.answer_q1,
+                        popupData.textEntry.answer_q2,
+                        popupData.textEntry.answer_q3,
+                        popupData.textEntry.answer_q4,
+                      ].map((answer, i) => answer && answer.trim() && (
+                        <div key={i} className="bg-green-600 rounded-xl p-3">
+                          <p className="text-white/60 text-[10px] mb-1">{i + 1}. {REVIEW_QUESTIONS[i]}</p>
+                          <p className="text-white text-sm leading-relaxed">{answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {popupData.photos.length === 0 && popupData.pollAnswers.length === 0 && !popupData.textEntry && (
+                  <p className="text-green-600 text-sm text-center py-8">
+                    Noch keine Beiträge.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Image zoom modal */}
+      {modalSrc && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setModalSrc(null)}
+        >
+          <img
+            src={modalSrc}
+            alt="Foto"
+            className="max-w-full max-h-full rounded-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setModalSrc(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors"
+          >
+            <X className="w-6 h-6" strokeWidth={1.5} />
+          </button>
         </div>
       )}
     </div>
