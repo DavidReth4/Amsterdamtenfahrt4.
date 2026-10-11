@@ -42,7 +42,8 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
   const [photoUrls, setPhotoUrls] = useState<PhotoUrls>({});
   const [pollAnswers, setPollAnswers] = useState<PollAnswers>({});
   const [bonusCount, setBonusCount] = useState(0);
-  const [textSaved, setTextSaved] = useState(false);
+  const [textPoints, setTextPoints] = useState(0);
+  const [initialAnswers, setInitialAnswers] = useState<(string | null)[] | null>(null);
   const [score, setScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
   const isAdmin = user.username === ADMIN_USERNAME;
 
   const computeScore = useCallback(
-    (photos: PhotoUrls, polls: PollAnswers, bonus: number, saved: boolean, disabled: DisabledSet) => {
+    (photos: PhotoUrls, polls: PollAnswers, bonus: number, textPts: number, disabled: DisabledSet) => {
       const photoPoints = Object.keys(photos)
         .filter((k) => {
           const idx = parseInt(k);
@@ -59,8 +60,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
       const pollPoints = Object.entries(polls)
         .filter(([k, p]) => p.correct && !disabled.pollQuestions.has(parseInt(k))).length;
       const bonusPoints = Math.min(bonus, MAX_BONUS_UPLOADS);
-      const textPoint = saved ? 1 : 0;
-      return photoPoints + pollPoints + bonusPoints + textPoint;
+      return photoPoints + pollPoints + bonusPoints + textPts;
     },
     [],
   );
@@ -122,15 +122,22 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
         }
       }
 
-      const hasText = textRes.data !== null;
-      setTextSaved(hasText);
+      const textEntry = textRes.data as GrachtenTextEntry | null;
+      const answersFromDb = textEntry
+        ? [textEntry.answer_q1, textEntry.answer_q2, textEntry.answer_q3, textEntry.answer_q4]
+        : null;
+      const tPts = answersFromDb
+        ? answersFromDb.filter((a) => a && a.trim()).length
+        : 0;
+      setTextPoints(tPts);
+      setInitialAnswers(answersFromDb);
       setPhotoUrls(urls);
       setPollAnswers(answers);
       setBonusCount(bonus);
       if (isAdmin) {
         setScore(0);
       } else {
-        const s = computeScore(urls, answers, bonus, hasText, disabledItems);
+        const s = computeScore(urls, answers, bonus, tPts, disabledItems);
         setScore(s);
       }
     } catch (err) {
@@ -140,9 +147,9 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
     }
   };
 
-  const updateScore = async (photos: PhotoUrls, polls: PollAnswers, bonus: number, saved: boolean) => {
+  const updateScore = async (photos: PhotoUrls, polls: PollAnswers, bonus: number, textPts: number) => {
     if (isAdmin) return;
-    const s = computeScore(photos, polls, bonus, saved, disabledItems);
+    const s = computeScore(photos, polls, bonus, textPts, disabledItems);
     setScore(s);
     const { error } = await supabase.from('grachten_users').update({ total_score: s }).eq('id', user.id);
     if (error) {
@@ -161,7 +168,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
     const newDisabled = parseDisabledItems((data || []) as DisabledItem[]);
     setDisabledItems(newDisabled);
     if (isAdmin) return;
-    const s = computeScore(photoUrls, pollAnswers, bonusCount, textSaved, newDisabled);
+    const s = computeScore(photoUrls, pollAnswers, bonusCount, textPoints, newDisabled);
     setScore(s);
     const { error: updateError } = await supabase.from('grachten_users').update({ total_score: s }).eq('id', user.id);
     if (!updateError) await loadLeaderboard();
@@ -170,7 +177,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
   const handlePhotoUploaded = (spotIndex: number, url: string) => {
     const newPhotos = { ...photoUrls, [spotIndex]: url };
     setPhotoUrls(newPhotos);
-    updateScore(newPhotos, pollAnswers, bonusCount, textSaved);
+    updateScore(newPhotos, pollAnswers, bonusCount, textPoints);
   };
 
   const handlePollAnswer = async (pollIndex: number, optionIndex: number) => {
@@ -187,7 +194,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
 
       const newAnswers = { ...pollAnswers, [pollIndex]: { selected: optionIndex, correct: isCorrect } };
       setPollAnswers(newAnswers);
-      updateScore(photoUrls, newAnswers, bonusCount, textSaved);
+      updateScore(photoUrls, newAnswers, bonusCount, textPoints);
     } catch (err) {
       console.error('Failed to save poll answer:', err);
       alert('Antwort konnte nicht gespeichert werden. Bitte versuche es erneut.');
@@ -197,12 +204,12 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
   const handleBonusUploaded = () => {
     const newBonus = bonusCount + 1;
     setBonusCount(newBonus);
-    updateScore(photoUrls, pollAnswers, newBonus, textSaved);
+    updateScore(photoUrls, pollAnswers, newBonus, textPoints);
   };
 
-  const handleTextSaved = () => {
-    setTextSaved(true);
-    updateScore(photoUrls, pollAnswers, bonusCount, true);
+  const handleTextSaved = (answeredCount: number) => {
+    setTextPoints(answeredCount);
+    updateScore(photoUrls, pollAnswers, bonusCount, answeredCount);
   };
 
   const loadLeaderboardRef = useRef(loadLeaderboard);
@@ -372,7 +379,7 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
         <TextEntry
           user={user}
           onSaved={handleTextSaved}
-          initialText={null}
+          initialAnswers={initialAnswers}
         />
       </div>
 

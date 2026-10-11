@@ -110,4 +110,4 @@ export const POLL_QUESTIONS: PollQuestion[] = [
 
 import { MAX_BONUS_UPLOADS } from '@/lib/supabase';
 
-export const MAX_POINTS = PHOTO_SPOTS.length + THINGS_SPOTS.length + POLL_QUESTIONS.length + MAX_BONUS_UPLOADS + 1;
+export const MAX_POINTS = PHOTO_SPOTS.length + THINGS_SPOTS.length + POLL_QUESTIONS.length + MAX_BONUS_UPLOADS + 4;

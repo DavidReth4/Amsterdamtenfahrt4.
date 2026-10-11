@@ -33,6 +33,10 @@ export type GrachtenTextEntry = {
   id: string;
   user_id: string;
   content: string;
+  answer_q1: string | null;
+  answer_q2: string | null;
+  answer_q3: string | null;
+  answer_q4: string | null;
   created_at: string;
 };
 

@@ -134,7 +134,10 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
         const pollPoints = allPolls.filter(
           (p) => p.user_id === u.id && p.is_correct && !disabled.pollQuestions.has(p.poll_index),
         ).length;
-        const textPoint = allTexts.find((t) => t.user_id === u.id) ? 1 : 0;
+        const textEntry = allTexts.find((t) => t.user_id === u.id);
+        const textPoint = textEntry
+          ? [textEntry.answer_q1, textEntry.answer_q2, textEntry.answer_q3, textEntry.answer_q4].filter((a) => a && a.trim()).length
+          : 0;
         const baseScore = photoPoints + bonusPhotoPoints + pollPoints + textPoint;
         const bonusFromLikes = isAdminUser ? 0 : userLikeCount * LIKE_POINTS;
         const bonusFromFavs = isAdminUser ? 0 : userFavCount * FAVORITE_POINTS;
@@ -332,12 +335,13 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
     const [photosRes, pollsRes, textRes] = await Promise.all([
       supabase.from('grachten_photos').select('spot_index').eq('user_id', userId),
       supabase.from('grachten_poll_answers').select('is_correct').eq('user_id', userId),
-      supabase.from('grachten_text_entries').select('id').eq('user_id', userId).maybeSingle(),
+      supabase.from('grachten_text_entries').select('answer_q1,answer_q2,answer_q3,answer_q4').eq('user_id', userId).maybeSingle(),
     ]);
     const photoPoints = (photosRes.data || []).filter((p) => p.spot_index < BONUS_SPOT_BASE).length;
     const bonusPoints = (photosRes.data || []).filter((p) => p.spot_index >= BONUS_SPOT_BASE).length;
     const pollPoints = (pollsRes.data || []).filter((p) => p.is_correct).length;
-    const textPoint = textRes.data ? 1 : 0;
+    const t = textRes.data as { answer_q1: string | null; answer_q2: string | null; answer_q3: string | null; answer_q4: string | null } | null;
+    const textPoint = t ? [t.answer_q1, t.answer_q2, t.answer_q3, t.answer_q4].filter((a) => a && a.trim()).length : 0;
     const score = photoPoints + bonusPoints + pollPoints + textPoint;
     await supabase.from('grachten_users').update({ total_score: score }).eq('id', userId);
   };
@@ -545,10 +549,20 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
                       <div className="mb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <FileText className="w-4 h-4 text-white/70" strokeWidth={1.5} />
-                          <p className="text-white/70 text-xs font-medium">Ihre Gedanken</p>
+                          <p className="text-white/70 text-xs font-medium">Rezension</p>
                         </div>
-                        <div className="bg-green-700 rounded-xl p-3">
-                          <p className="text-white text-sm leading-relaxed">{adminData.textEntry.content}</p>
+                        <div className="flex flex-col gap-2">
+                          {[
+                            { q: 'Was hast du heute neues gelernt?', a: adminData.textEntry.answer_q1 },
+                            { q: 'Welche Fragen sind noch offen, bzw. haben sich neu ergeben?', a: adminData.textEntry.answer_q2 },
+                            { q: 'Hat dir die Grachtenfahrt - Rallye gefallen, wenn ja warum, wenn nein, warum nicht?', a: adminData.textEntry.answer_q3 },
+                            { q: 'Hat dir die Grachtenfahrt, unabhängig von der Rallye gefallen, wenn ja warum, wenn nein, warum nicht?', a: adminData.textEntry.answer_q4 },
+                          ].map((item, i) => item.a && item.a.trim() && (
+                            <div key={i} className="bg-green-700 rounded-xl p-3">
+                              <p className="text-white/60 text-[10px] mb-1">{i + 1}. {item.q}</p>
+                              <p className="text-white text-sm leading-relaxed">{item.a}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -792,10 +806,20 @@ export default function ResultsPage({ currentUser, onBack, isAdmin, onLogout }: 
                         <div className="group/text">
                           <div className="flex items-center gap-2 mb-2">
                             <FileText className="w-4 h-4 text-white/70" strokeWidth={1.5} />
-                            <p className="text-white/70 text-xs font-medium">Ihre Gedanken</p>
+                            <p className="text-white/70 text-xs font-medium">Rezension</p>
                           </div>
-                          <div className="bg-green-700 rounded-xl p-3 relative">
-                            <p className="text-white text-sm leading-relaxed">{u.textEntry.content}</p>
+                          <div className="flex flex-col gap-2 relative">
+                            {[
+                              { q: 'Was hast du heute neues gelernt?', a: u.textEntry.answer_q1 },
+                              { q: 'Welche Fragen sind noch offen, bzw. haben sich neu ergeben?', a: u.textEntry.answer_q2 },
+                              { q: 'Hat dir die Grachtenfahrt - Rallye gefallen, wenn ja warum, wenn nein, warum nicht?', a: u.textEntry.answer_q3 },
+                              { q: 'Hat dir die Grachtenfahrt, unabhängig von der Rallye gefallen, wenn ja warum, wenn nein, warum nicht?', a: u.textEntry.answer_q4 },
+                            ].map((item, i) => item.a && item.a.trim() && (
+                              <div key={i} className="bg-green-700 rounded-xl p-3">
+                                <p className="text-white/60 text-[10px] mb-1">{i + 1}. {item.q}</p>
+                                <p className="text-white text-sm leading-relaxed">{item.a}</p>
+                              </div>
+                            ))}
                             {isAdmin && (
                               <button
                                 onClick={() => handleDeleteText(u.textEntry!.id, u.id)}
