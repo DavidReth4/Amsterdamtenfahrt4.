@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { groupByScore, type ScoredUser } from '@/lib/scoring';
 
 type LeaderboardBarProps = {
@@ -60,6 +61,7 @@ function RollingValue({ value, className = '' }: RollingValueProps) {
 }
 
 export default function LeaderboardBar({ score, rank, topUsers }: LeaderboardBarProps) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const groupsWithPoints = groupByScore(topUsers).filter((g) => g[0].displayScore > 0);
   const podiumGroups = [
     groupsWithPoints[1] ?? null,
@@ -99,22 +101,43 @@ export default function LeaderboardBar({ score, rank, topUsers }: LeaderboardBar
           const group = podiumGroups[idx];
           const primaryUser = group?.[0] ?? null;
           const tieCount = group ? group.length - 1 : 0;
+          const isExpanded = expandedIdx === idx;
 
           return (
-            <div key={position.label} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+            <div key={position.label} className="relative flex min-w-0 flex-1 flex-col items-center justify-end">
               {primaryUser ? (
                 <>
                   <div className="flex flex-col items-center mb-1 max-w-full">
                     {tieCount > 0 && (
-                      <p className="text-[8px] text-gray-500 text-center leading-none mb-0.5">
+                      <button
+                        onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                        className="flex items-center gap-0.5 text-[8px] text-gray-500 hover:text-black transition-colors leading-none mb-0.5"
+                      >
                         + {tieCount}
-                      </p>
+                        {isExpanded ? (
+                          <ChevronUp className="w-2 h-2" strokeWidth={2.5} />
+                        ) : (
+                          <ChevronDown className="w-2 h-2" strokeWidth={2.5} />
+                        )}
+                      </button>
                     )}
                     <p className="max-w-full truncate text-center text-[10px] font-semibold text-black sm:text-xs leading-tight">
                       <RollingValue value={primaryUser.username} className="max-w-full" />
                     </p>
                   </div>
                   <div className={`w-full max-w-20 bg-black ${position.height}`} aria-label={`Platz ${position.label}`} />
+                  {isExpanded && tieCount > 0 && group && (
+                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-50 bg-white rounded-lg shadow-lg border border-gray-100 px-2 py-1.5 min-w-[80px]">
+                      {group.slice(1).map((u) => (
+                        <p
+                          key={u.id}
+                          className="max-w-full truncate text-center text-[10px] font-semibold text-black leading-tight py-0.5"
+                        >
+                          {u.username}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

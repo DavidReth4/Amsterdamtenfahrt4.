@@ -52,6 +52,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
   const [popupData, setPopupData] = useState<UserPost | null>(null);
   const [popupLoading, setPopupLoading] = useState(false);
   const [modalSrc, setModalSrc] = useState<string | null>(null);
+  const [expandedRanks, setExpandedRanks] = useState<Set<number>>(new Set());
   const isAdmin = currentUser.username === ADMIN_USERNAME;
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const submittedRef = useRef(false);
@@ -325,15 +326,25 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                     className={`flex flex-col items-center ${order}`}
                   >
                     {/* Name above podium */}
-                    <div className="mb-2 h-16 flex flex-col items-center justify-end">
+                    <div className="mb-2 min-h-[4rem] flex flex-col items-center justify-end">
                       {isRevealed && user && (
                         <div
                           className={`fade-in-up ${showWobble ? 'podium-wobble' : ''}`}
                         >
                           {tieCount > 0 && (
-                            <p className="text-white/60 text-[10px] text-center mb-0.5">
-                              + {tieCount}
-                            </p>
+                            <button
+                              onClick={() =>
+                                setExpandedRanks((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(rank)) next.delete(rank);
+                                  else next.add(rank);
+                                  return next;
+                                })
+                              }
+                              className="text-white/60 text-[10px] text-center mb-0.5 hover:text-white transition-colors"
+                            >
+                              {expandedRanks.has(rank) ? '− ausblenden' : `+ ${tieCount}`}
+                            </button>
                           )}
                           <button
                             onClick={() => openPopup(user.id)}
@@ -346,6 +357,19 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                           <p className="text-white/70 text-xs text-center">
                             {user.displayScore} Punkte
                           </p>
+                          {tieCount > 0 && expandedRanks.has(rank) && group && (
+                            <div className="mt-1 flex flex-col gap-0.5">
+                              {group.slice(1).map((tiedUser) => (
+                                <button
+                                  key={tiedUser.id}
+                                  onClick={() => openPopup(tiedUser.id)}
+                                  className="text-white/80 text-xs text-center hover:underline decoration-white/50 underline-offset-2"
+                                >
+                                  {tiedUser.username}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
