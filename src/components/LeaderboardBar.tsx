@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
-
-type LeaderboardUser = {
-  id: string;
-  username: string;
-  total_score: number;
-};
+import { groupByScore, type ScoredUser } from '@/lib/scoring';
 
 type LeaderboardBarProps = {
   score: number;
   rank: number | null;
-  topUsers: LeaderboardUser[];
+  topUsers: ScoredUser[];
 };
 
 type RollingValueProps = {
@@ -65,16 +60,12 @@ function RollingValue({ value, className = '' }: RollingValueProps) {
 }
 
 export default function LeaderboardBar({ score, rank, topUsers }: LeaderboardBarProps) {
-  // Group users by score to determine shared podium positions
-  const sorted = [...topUsers].sort((a, b) => b.total_score - a.total_score);
-  const rankOneUsers = sorted.filter((u) => u.total_score === sorted[0]?.total_score);
-  const rankTwoScore = sorted.find((u) => u.total_score !== sorted[0]?.total_score)?.total_score;
-  const rankTwoUsers = rankTwoScore !== undefined ? sorted.filter((u) => u.total_score === rankTwoScore) : [];
-  const usedScores = new Set([sorted[0]?.total_score, rankTwoScore].filter((v) => v !== undefined));
-  const rankThreeScore = sorted.find((u) => !usedScores.has(u.total_score))?.total_score;
-  const rankThreeUsers = rankThreeScore !== undefined ? sorted.filter((u) => u.total_score === rankThreeScore) : [];
-
-  const podiumGroups = [rankTwoUsers, rankOneUsers, rankThreeUsers];
+  const groupsWithPoints = groupByScore(topUsers).filter((g) => g[0].displayScore > 0);
+  const podiumGroups = [
+    groupsWithPoints[1] ?? null,
+    groupsWithPoints[0] ?? null,
+    groupsWithPoints[2] ?? null,
+  ];
 
   return (
     <div className="fixed bottom-3 left-1/2 z-40 flex h-[88px] w-[calc(100%-2rem)] max-w-3xl -translate-x-1/2 items-center rounded-3xl bg-white px-4 shadow-[4px_4px_12px_rgba(0,0,0,0.12)] overflow-hidden sm:bottom-5 sm:h-[96px] sm:px-6">
@@ -105,21 +96,23 @@ export default function LeaderboardBar({ score, rank, topUsers }: LeaderboardBar
 
       <div className="flex min-w-0 flex-1 items-end justify-center gap-2 self-stretch px-2 pt-3 sm:gap-4 sm:px-6">
         {podiumPositions.map((position, idx) => {
-          const groupUsers = podiumGroups[idx];
+          const group = podiumGroups[idx];
+          const primaryUser = group?.[0] ?? null;
+          const tieCount = group ? group.length - 1 : 0;
 
           return (
             <div key={position.label} className="flex min-w-0 flex-1 flex-col items-center justify-end">
-              {groupUsers && groupUsers.length > 0 ? (
+              {primaryUser ? (
                 <>
                   <div className="flex flex-col items-center mb-1 max-w-full">
-                    {groupUsers.map((u) => (
-                      <p
-                        key={u.id}
-                        className="max-w-full truncate text-center text-[10px] font-semibold text-black sm:text-xs leading-tight"
-                      >
-                        <RollingValue value={u.username} className="max-w-full" />
+                    {tieCount > 0 && (
+                      <p className="text-[8px] text-gray-500 text-center leading-none mb-0.5">
+                        + {tieCount}
                       </p>
-                    ))}
+                    )}
+                    <p className="max-w-full truncate text-center text-[10px] font-semibold text-black sm:text-xs leading-tight">
+                      <RollingValue value={primaryUser.username} className="max-w-full" />
+                    </p>
                   </div>
                   <div className={`w-full max-w-20 bg-black ${position.height}`} aria-label={`Platz ${position.label}`} />
                 </>

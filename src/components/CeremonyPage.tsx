@@ -12,17 +12,20 @@ import {
   type CeremonyState,
 } from '@/lib/supabase';
 import { PHOTO_SPOTS, POLL_QUESTIONS } from '@/lib/data';
+import {
+  computeDisplayScores,
+  rankUsers,
+  groupByScore,
+  fetchAllLikesAndFavorites,
+  type ScoredUser,
+} from '@/lib/scoring';
 
 type CeremonyPageProps = {
   currentUser: GrachtenUser;
   onCeremonyEnd: () => void;
 };
 
-type RankedUser = {
-  id: string;
-  username: string;
-  total_score: number;
-};
+type RankedUser = ScoredUser;
 
 const REVIEW_QUESTIONS = [
   'Was hast du heute neues gelernt?',
@@ -133,18 +136,26 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
   }, [phase]);
 
   const loadRankedUsers = async () => {
-    const { data, error } = await supabase
-      .from('grachten_users')
-      .select('id, username, total_score')
-      .neq('username', ADMIN_USERNAME)
-      .order('total_score', { ascending: false })
-      .order('created_at', { ascending: true });
+    const [usersRes, { likes, favorites }] = await Promise.all([
+      supabase
+        .from('grachten_users')
+        .select('id, username, total_score')
+        .neq('username', ADMIN_USERNAME)
+        .order('created_at', { ascending: true }),
+      fetchAllLikesAndFavorites(supabase),
+    ]);
 
-    if (error) {
-      console.error('Failed to load ranked users:', error);
+    if (usersRes.error) {
+      console.error('Failed to load ranked users:', usersRes.error);
       return;
     }
-    setRankedUsers((data || []) as RankedUser[]);
+
+    const scored = computeDisplayScores(
+      (usersRes.data || []) as { id: string; username: string; total_score: number }[],
+      likes,
+      favorites,
+    );
+    setRankedUsers(rankUsers(scored));
   };
 
   const autoSubmitAll = async () => {
@@ -191,9 +202,13 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
     return data.publicUrl;
   };
 
-  const top5 = rankedUsers.slice(0, 5);
-  const top3 = rankedUsers.slice(0, 3);
-  const places4and5 = rankedUsers.slice(3, 5);
+  const allGroups = groupByScore(rankedUsers);
+  const groupsWithPoints = allGroups.filter((g) => g[0].displayScore > 0);
+
+  const top3Groups = groupsWithPoints.slice(0, 3);
+  const top5ForPopup = groupsWithPoints.slice(0, 5).flat();
+
+  const getPodiumGroup = (rank: number) => top3Groups[rank - 1];
 
   const podiumConfig = [
     { rank: 1, height: 'h-40', medal: 'bg-yellow-400 text-yellow-900', order: 'order-2' },
@@ -201,8 +216,12 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
     { rank: 3, height: 'h-20', medal: 'bg-orange-400 text-orange-900', order: 'order-3' },
   ];
 
-  const getPodiumUser = (rank: number) => top3[rank - 1];
   const getRevealStepForRank = (rank: number) => revealOrder.indexOf(rank) + 1;
+
+  const places4and5 = [
+    groupsWithPoints[3]?.[0] ?? null,
+    groupsWithPoints[4]?.[0] ?? null,
+  ];
 
   return (
     <div className="min-h-screen bg-tan-100 flex flex-col items-center justify-center relative overflow-hidden px-4">
@@ -293,10 +312,12 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
             {/* Podium */}
             <div className="flex items-end justify-center gap-2 sm:gap-4 mb-6">
               {podiumConfig.map(({ rank, height, medal, order }) => {
-                const user = getPodiumUser(rank);
+                const group = getPodiumGroup(rank);
+                const user = group?.[0];
+                const tieCount = group ? group.length - 1 : 0;
                 const stepForRank = getRevealStepForRank(rank);
-                const isRevealed = revealStep >= stepForRank;
-                const showWobble = revealStep > stepForRank;
+                const isRevealed = revealStep >= stepForRank && !!user;
+                const showWobble = revealStep > stepForRank && !!user;
 
                 return (
                   <div
@@ -304,11 +325,16 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                     className={`flex flex-col items-center ${order}`}
                   >
                     {/* Name above podium */}
-                    <div className="mb-2 h-12 flex items-center justify-center">
+                    <div className="mb-2 h-16 flex flex-col items-center justify-end">
                       {isRevealed && user && (
                         <div
                           className={`fade-in-up ${showWobble ? 'podium-wobble' : ''}`}
                         >
+                          {tieCount > 0 && (
+                            <p className="text-white/60 text-[10px] text-center mb-0.5">
+                              + {tieCount}
+                            </p>
+                          )}
                           <button
                             onClick={() => openPopup(user.id)}
                             className="hover:underline decoration-white/50 underline-offset-2"
@@ -318,7 +344,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                             </p>
                           </button>
                           <p className="text-white/70 text-xs text-center">
-                            {user.total_score} Punkte
+                            {user.displayScore} Punkte
                           </p>
                         </div>
                       )}
@@ -377,7 +403,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
                           </p>
                         </button>
                         <p className="text-white/50 text-xs">
-                          {user.total_score} Punkte
+                          {user.displayScore} Punkte
                         </p>
                       </div>
                     )}
@@ -405,7 +431,7 @@ export default function CeremonyPage({ currentUser, onCeremonyEnd }: CeremonyPag
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-green-700">
-                {top5.find((u) => u.id === popupUserId)?.username ?? 'Beitrag'}
+                {top5ForPopup.find((u) => u.id === popupUserId)?.username ?? 'Beitrag'}
               </h3>
               <button
                 onClick={() => { setPopupUserId(null); setPopupData(null); }}

@@ -15,6 +15,11 @@ import {
   parseDisabledItems,
 } from '@/lib/supabase';
 import {
+  computeDisplayScores,
+  fetchAllLikesAndFavorites,
+  type ScoredUser,
+} from '@/lib/scoring';
+import {
   TRIP_DESCRIPTION,
   PHOTO_SPOTS,
   THINGS_SPOTS,
@@ -36,7 +41,7 @@ type HomePageProps = {
 
 type PhotoUrls = Record<number, string>;
 type PollAnswers = Record<number, { selected: number; correct: boolean }>;
-type LeaderboardUser = Pick<GrachtenUser, 'id' | 'username' | 'total_score'>;
+type LeaderboardUser = ScoredUser;
 
 export default function HomePage({ user, onSubmitResults, onLogout }: HomePageProps) {
   const [photoUrls, setPhotoUrls] = useState<PhotoUrls>({});
@@ -81,20 +86,25 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
   };
 
   const loadLeaderboard = async () => {
-    const { data, error } = await supabase
-      .from('grachten_users')
-      .select('id, username, total_score')
-      .order('total_score', { ascending: false })
-      .order('created_at', { ascending: true });
+    const [usersRes, { likes, favorites }] = await Promise.all([
+      supabase
+        .from('grachten_users')
+        .select('id, username, total_score')
+        .order('created_at', { ascending: true }),
+      fetchAllLikesAndFavorites(supabase),
+    ]);
 
-    if (error) {
-      console.error('Failed to load leaderboard:', error);
+    if (usersRes.error) {
+      console.error('Failed to load leaderboard:', usersRes.error);
       return;
     }
 
-    setLeaderboard(
-      ((data || []) as LeaderboardUser[]).filter((participant) => participant.username !== ADMIN_USERNAME),
+    const scored = computeDisplayScores(
+      (usersRes.data || []) as { id: string; username: string; total_score: number }[],
+      likes,
+      favorites,
     );
+    setLeaderboard(scored);
   };
 
   const loadExistingData = async () => {
@@ -233,12 +243,12 @@ export default function HomePage({ user, onSubmitResults, onLogout }: HomePagePr
     );
   }
 
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => b.total_score - a.total_score);
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => b.displayScore - a.displayScore);
   let sharedRank: number | null = null;
   {
     let r = 1;
     for (let i = 0; i < sortedLeaderboard.length; i++) {
-      if (i > 0 && sortedLeaderboard[i].total_score !== sortedLeaderboard[i - 1].total_score) {
+      if (i > 0 && sortedLeaderboard[i].displayScore !== sortedLeaderboard[i - 1].displayScore) {
         r = i + 1;
       }
       if (sortedLeaderboard[i].id === user.id) {
